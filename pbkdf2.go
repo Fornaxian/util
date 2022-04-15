@@ -27,7 +27,7 @@ func PBKDF2Check(password, legacyHash string) (valid bool, err error) {
 		return false, err
 	}
 
-	return bytes.Compare(
+	return bytes.Equal(
 		hash,
 		pbkdf2.Key(
 			[]byte(password),
@@ -36,5 +36,5 @@ func PBKDF2Check(password, legacyHash string) (valid bool, err error) {
 			len(hash),
 			sha1.New,
 		),
-	) == 0, nil
+	), nil
 }

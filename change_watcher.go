@@ -10,21 +10,21 @@ import (
 
 // ChangeWatcher watches a database row for changes and relays the events to a
 // list of listeners
-type ChangeWatcher struct {
-	watchers       map[string]*watcher
+type ChangeWatcher[T any] struct {
+	watchers       map[string]*watcher[T]
 	totalListeners int
-	fn             ChangeWatcherFunc
+	changeFunc     ChangeWatcherFunc[T]
 	mu             sync.Mutex
 }
 
-type watcher struct {
+type watcher[T any] struct {
 	listeners int
-	addrem    chan listenerOp // Channel for adding and removing listeners
+	addrem    chan listenerOp[T] // Channel for adding and removing listeners
 }
 
-type listenerOp struct {
+type listenerOp[T any] struct {
 	add      bool
-	listener chan interface{}
+	listener chan T
 }
 
 // ChangeWatcherFunc is the function which periodically checks if a value has
@@ -36,22 +36,22 @@ type listenerOp struct {
 // return false and the thing which was checked
 //
 // And an error occurs you should return changed=false and thing=nil
-type ChangeWatcherFunc func(id string, previousThing interface{}) (changed bool, thing interface{})
+type ChangeWatcherFunc[T any] func(id string, previousThing T) (changed bool, thing T)
 
 // NewChangeWatcher creates a new change watcher. The changeFunc is used to
 // check whether a change occurred
-func NewChangeWatcher(changeFunc ChangeWatcherFunc) *ChangeWatcher {
-	return &ChangeWatcher{
-		watchers:       make(map[string]*watcher),
+func NewChangeWatcher[T any](changeFunc ChangeWatcherFunc[T]) *ChangeWatcher[T] {
+	return &ChangeWatcher[T]{
+		watchers:       make(map[string]*watcher[T]),
 		totalListeners: 0,
-		fn:             changeFunc,
+		changeFunc:     changeFunc,
 		mu:             sync.Mutex{},
 	}
 }
 
 // Open creates a new change listener for an item. Do not close the channel
 // yourself because then the watcher thread will crash. Call Close() instead
-func (s *ChangeWatcher) Open(id string) chan interface{} {
+func (s *ChangeWatcher[T]) Open(id string) chan T {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -60,9 +60,9 @@ func (s *ChangeWatcher) Open(id string) chan interface{} {
 
 	if !ok {
 		// Watcher does not exist yet. Create it
-		w = &watcher{
+		w = &watcher[T]{
 			listeners: 0,
-			addrem:    make(chan listenerOp, 4),
+			addrem:    make(chan listenerOp[T], 4),
 		}
 		s.watchers[id] = w
 		go s.watch(id, w.addrem)
@@ -70,30 +70,30 @@ func (s *ChangeWatcher) Open(id string) chan interface{} {
 
 	// Create channel and add it to the watcher. Then return the channel to the
 	// listener
-	var c = make(chan interface{})
+	var c = make(chan T)
 	w.listeners++
 	s.totalListeners++
-	w.addrem <- listenerOp{true, c}
+	w.addrem <- listenerOp[T]{true, c}
 	return c
 }
 
 // Close closes a channel and removes it from the list of change listeners. If
 // this is the last listener for that feed the feed will be removed
-func (s *ChangeWatcher) Close(id string, c chan interface{}) {
+func (s *ChangeWatcher[T]) Close(id string, c chan T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	w, ok := s.watchers[id]
 	if !ok {
 		panic(fmt.Errorf(
-			"Tried to close channel %v for watcher %s, but watcher doesn't exist",
+			"tried to close channel %v for watcher %s, but watcher doesn't exist",
 			c, id,
 		))
 	}
 
 	w.listeners--
 	s.totalListeners--
-	w.addrem <- listenerOp{false, c}
+	w.addrem <- listenerOp[T]{false, c}
 
 	if w.listeners == 0 {
 		// There are no more listeners. Remove this watcher from the map and
@@ -111,7 +111,7 @@ func (s *ChangeWatcher) Close(id string, c chan interface{}) {
 
 // Stats returns some statistics about the change watcher. Currently the only
 // available stat is the number of watcher threads active
-func (s *ChangeWatcher) Stats() (watchers int, listeners int) {
+func (s *ChangeWatcher[T]) Stats() (watchers int, listeners int) {
 	s.mu.Lock()
 	watchers = len(s.watchers)
 	listeners = s.totalListeners
@@ -119,11 +119,11 @@ func (s *ChangeWatcher) Stats() (watchers int, listeners int) {
 	return watchers, listeners
 }
 
-func (s *ChangeWatcher) watch(id string, addrem <-chan listenerOp) {
+func (s *ChangeWatcher[T]) watch(id string, addrem <-chan listenerOp[T]) {
 	var (
-		listeners []chan interface{}
+		listeners []chan T
 		changed   bool
-		thing     interface{}
+		thing     T
 		timeout   = time.Second
 		timer     = time.NewTimer(timeout)
 	)
@@ -173,7 +173,7 @@ func (s *ChangeWatcher) watch(id string, addrem <-chan listenerOp) {
 				}
 				if !found {
 					panic(fmt.Errorf(
-						"Tried to remove channel %v from watcher %s but it doesn't exist",
+						"tried to remove channel %v from watcher %s but it doesn't exist",
 						lop.listener, id,
 					))
 				}
@@ -183,7 +183,7 @@ func (s *ChangeWatcher) watch(id string, addrem <-chan listenerOp) {
 		}
 
 		// Check if the thing has changed
-		changed, thing = s.fn(id, thing)
+		changed, thing = s.changeFunc(id, thing)
 
 		// Reset the timer
 		timer.Reset(timeout)
