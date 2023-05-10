@@ -1,7 +1,7 @@
 package util
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"os"
 	"strconv"
@@ -14,6 +14,7 @@ const (
 	listenFdsStart = 3
 )
 
+var ErrSocketNotFound = errors.New("socket not found")
 var socketFiles []*os.File
 
 // socketFiles returns a slice containing a `os.File` object for each file
@@ -54,11 +55,22 @@ func getSocketFiles() []*os.File {
 
 // SystemdSocketByName returns a net.Listener if there is a systemd socket with
 // that name available
-func SystemdSocketByName(name string) (net.Listener, error) {
+func SystemdListenerByName(name string) (net.Listener, error) {
 	for _, f := range getSocketFiles() {
 		if f.Name() == name {
 			return net.FileListener(f)
 		}
 	}
-	return nil, fmt.Errorf("not found")
+	return nil, ErrSocketNotFound
+}
+
+// SystemdFileByName returns a *os.File if there is a systemd socket with that
+// name available
+func SystemdFileByName(name string) (*os.File, error) {
+	for _, f := range getSocketFiles() {
+		if f.Name() == name {
+			return f, nil
+		}
+	}
+	return nil, ErrSocketNotFound
 }
