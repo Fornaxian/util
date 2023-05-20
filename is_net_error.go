@@ -15,5 +15,6 @@ func IsNetError(err error) bool {
 	return strings.HasSuffix(err.Error(), "connection reset by peer") ||
 		strings.HasSuffix(err.Error(), "broken pipe") ||
 		strings.HasSuffix(err.Error(), "connection timed out") ||
-		strings.HasSuffix(err.Error(), "no route to host")
+		strings.HasSuffix(err.Error(), "no route to host") ||
+		strings.HasSuffix(err.Error(), "network is unreachable")
 }
