@@ -16,5 +16,6 @@ func IsNetError(err error) bool {
 		strings.HasSuffix(err.Error(), "broken pipe") ||
 		strings.HasSuffix(err.Error(), "connection timed out") ||
 		strings.HasSuffix(err.Error(), "no route to host") ||
-		strings.HasSuffix(err.Error(), "network is unreachable")
+		strings.HasSuffix(err.Error(), "network is unreachable") ||
+		strings.HasSuffix(err.Error(), "write: connection refused")
 }
