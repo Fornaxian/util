@@ -15,6 +15,9 @@ type ChangeWatcher[T any] struct {
 	totalListeners int
 	changeFunc     ChangeWatcherFunc[T]
 	mu             sync.Mutex
+
+	intervalStep time.Duration
+	maxInterval  time.Duration
 }
 
 type watcher[T any] struct {
@@ -40,12 +43,19 @@ type ChangeWatcherFunc[T any] func(id string, previousThing T) (changed bool, th
 
 // NewChangeWatcher creates a new change watcher. The changeFunc is used to
 // check whether a change occurred
-func NewChangeWatcher[T any](changeFunc ChangeWatcherFunc[T]) *ChangeWatcher[T] {
+func NewChangeWatcher[T any](
+	changeFunc ChangeWatcherFunc[T],
+	intervalStep time.Duration,
+	maxInterval time.Duration,
+) *ChangeWatcher[T] {
 	return &ChangeWatcher[T]{
 		watchers:       make(map[string]*watcher[T]),
 		totalListeners: 0,
 		changeFunc:     changeFunc,
 		mu:             sync.Mutex{},
+
+		intervalStep: intervalStep,
+		maxInterval:  maxInterval,
 	}
 }
 
@@ -124,7 +134,7 @@ func (s *ChangeWatcher[T]) watch(id string, addrem <-chan listenerOp[T]) {
 		listeners []chan T
 		changed   bool
 		thing     T
-		timeout   = time.Second
+		timeout   = s.intervalStep * 10
 		timer     = time.NewTimer(timeout)
 	)
 	for {
@@ -190,16 +200,16 @@ func (s *ChangeWatcher[T]) watch(id string, addrem <-chan listenerOp[T]) {
 
 		// If it did not change we increase the timeout and sleep again
 		if !changed {
-			if timeout < time.Second*10 {
-				timeout += time.Millisecond * 100
+			if timeout < s.maxInterval {
+				timeout += s.intervalStep
 			}
 			continue
 		}
 
 		// If it did change we decrease the timeout and relay the new thing to
 		// all our channels
-		if timeout > time.Millisecond*100 {
-			timeout -= time.Millisecond * 100
+		if timeout > s.intervalStep {
+			timeout -= s.intervalStep
 		}
 
 		// Forward the update to all the listeners
