@@ -7,16 +7,19 @@ package util
 // until the Unlock function is called, which puts a new bool into the channel.
 type ExecutionLimiter struct {
 	channel chan struct{}
+	threads int
 }
 
 // NewExecutionLimiter creates a new Exection Limiter. The numThreads parameter
 // is how many threads can concurrently execute the function
 func NewExecutionLimiter(numThreads int) (el *ExecutionLimiter) {
-	el = &ExecutionLimiter{channel: make(chan struct{}, numThreads)}
+	el = &ExecutionLimiter{
+		channel: make(chan struct{}, numThreads),
+		threads: numThreads,
+	}
 
-	// Fill the channel with bools. Each boolean essentially acts as an
-	// execution slot. When the channel is empty the Lock function will block
-	// until a new bool is fed into the channel through Unlock
+	// Fill the channel with slots. When the channel is empty the Lock function
+	// will block until a new struct is fed into the channel through Unlock
 	for i := 0; i < numThreads; i++ {
 		el.channel <- struct{}{}
 	}
@@ -27,8 +30,35 @@ func NewExecutionLimiter(numThreads int) (el *ExecutionLimiter) {
 // Stop will panic
 func (el *ExecutionLimiter) Stop() { close(el.channel) }
 
+// Drain drains the execution limiter of all slots. This essentially functions
+// as the Wait function of a WaitGroup. After Drain the ExecutionLimiter cannot
+// be used anymore
+func (el *ExecutionLimiter) Drain() {
+	for i := 0; i < el.threads; i++ {
+		<-el.channel
+	}
+	el.Stop()
+}
+
+// Lock the ExecutionLimiter
+func (el *ExecutionLimiter) TryLock() (ok bool) {
+	select {
+	case <-el.channel:
+		return true
+	default:
+		return false
+	}
+}
+
 // Lock the ExecutionLimiter
 func (el *ExecutionLimiter) Lock() { <-el.channel }
 
 // Unlock the ExecutionLimiter
 func (el *ExecutionLimiter) Unlock() { el.channel <- struct{}{} }
+
+// Exec obtains an execution slot, runs the provided function and then returns the slot
+func (el *ExecutionLimiter) Exec(f func()) {
+	el.Lock()
+	f()
+	el.Unlock()
+}
