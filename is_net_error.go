@@ -21,7 +21,10 @@ func IsNetError(err error) bool {
 		errors.Is(err, syscall.ENETDOWN) || // network is down
 		errors.Is(err, syscall.ECONNREFUSED) || // connection refused
 		errors.Is(err, syscall.ETIMEDOUT) || // connection timed out
-		strings.HasSuffix(err.Error(), "http2: stream closed") ||
-		strings.HasSuffix(err.Error(), "client disconnected") ||
+		strings.HasSuffix(err.Error(), "; CANCEL") || // http2.ErrCodeCancel
+		strings.HasSuffix(err.Error(), "; PROTOCOL_ERROR") || // http2.ErrCodeProtocol
+		strings.HasSuffix(err.Error(), "http2: stream closed") || // http2.ErrCodeStreamClosed
+		strings.HasSuffix(err.Error(), "http2: request body closed due to handler exiting") || // http2.errHandlerComplete
+		strings.HasSuffix(err.Error(), "client disconnected") || // http.http2errClientDisconnected
 		strings.HasSuffix(err.Error(), "H3_REQUEST_CANCELLED")
 }

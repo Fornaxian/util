@@ -62,6 +62,12 @@ func NewChangeWatcher[T any](
 // Open creates a new change listener for an item. Do not close the channel
 // yourself because then the watcher thread will crash. Call Close() instead
 func (s *ChangeWatcher[T]) Open(id string) chan T {
+	var c = make(chan T)
+	s.OpenWithChan(id, c)
+	return c
+}
+
+func (s *ChangeWatcher[T]) OpenWithChan(id string, c chan T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -80,11 +86,9 @@ func (s *ChangeWatcher[T]) Open(id string) chan T {
 
 	// Create channel and add it to the watcher. Then return the channel to the
 	// listener
-	var c = make(chan T)
 	w.listeners++
 	s.totalListeners++
 	w.addrem <- listenerOp[T]{true, c}
-	return c
 }
 
 // Close closes a channel and removes it from the list of change listeners. If
