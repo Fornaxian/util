@@ -1,6 +1,4 @@
 fornaxian.tech/log v0.0.0-20211102185326-552e9b1f8640 h1:UPDxJwLRCfh/cv80UMSanzmZ0jIcfS1mcd0Y06HYuLw=
 fornaxian.tech/log v0.0.0-20211102185326-552e9b1f8640/go.mod h1:sN82qMToeHhP2u3ehvrcE8y1IudRZJAZO9yG5OBYblo=
-golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
-golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
-golang.org/x/crypto v0.30.0 h1:RwoQn3GkWiMkzlX562cLB7OxWvjH1L8xutO2WoJcRoY=
-golang.org/x/crypto v0.30.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
+golang.org/x/crypto v0.36.0 h1:AnAEvhDddvBdpY+uR+MyHmuZzzNqXSe/GvuDeob5L34=
+golang.org/x/crypto v0.36.0/go.mod h1:Y4J0ReaxCR1IMaabaSMugxJES1EpwhBHhv2bDHklZvc=
